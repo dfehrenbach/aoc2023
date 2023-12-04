@@ -1,6 +1,7 @@
 
 (ns day3.core
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [clojure.set :as set]))
 
 (def max-x 140)
 (def max-y 140)
@@ -46,22 +47,59 @@
   (filter (fn [[x s]] (is-part? [x y] s))
           parts))
 
-(map-indexed (fn [y parts]
-               (filter-parts y parts))
-             input-nums)
-
 (defn part1 []
-  (let [parts (map-indexed (fn [y parts]
-                             (filter-parts y parts))
-                           input-nums)]
+  (let [parts (map-indexed filter-parts input-nums)]
     (->> parts
          (mapcat #(map (comp read-string second) %))
          (reduce +))))
 
-(defn part2 [])
+(def input-cogs
+  (map #(re-seq-map #"\*" %) input))
+
+(def cog-coords-list
+  (->> input-cogs
+       (map-indexed (fn [y cogs]
+                      (mapv (fn [[x _]] [x y]) cogs)))
+       (reduce concat)))
+
+(defn transform-parts [y parts]
+  (map (fn [[x s]]
+         (let [coords (mapv #(vector % y)
+                            (range x (+ x (count s))))]
+           {:num (read-string s) :coords coords}))
+       parts))
+
+(def all-numbers
+  (->> input-nums
+       (map-indexed transform-parts)
+       flatten))
+
+(defn cog-next-to-num? [[x y] {coords :coords}]
+  ;; true if intersection between coords and coords-around-str of x,y is not empty
+  (seq (set/intersection (set coords) (set (coords-around-str [x y] "*")))))
+
+(defn nums-next-to-cog [[x y]]
+  (filter #(cog-next-to-num? [x y] %) all-numbers))
+
+(defn part2 []
+  (reduce + (for [cog cog-coords-list
+                  :let [nums (nums-next-to-cog cog)]
+                  :when (= 2 (count nums))]
+              (reduce * (map :num nums)))))
 
 (comment
   (part1)
   ;; => 527364
 
+  (first input-nums)
+  ;; => {19 "15", 25 "904", 39 "850", 59 "329", 81 "13", 119 "871", 126 "816", 133 "697"}
+
+  (second input-cogs)
+  ;; => {62 "*", 86 "*", 120 "*", 132 "*"}
+
+  (first all-numbers)
+  ;; => {:num 15, :coords [[19 0] [20 0]]}
+
+  (part2)
+  ;; => 79026871
   0)
