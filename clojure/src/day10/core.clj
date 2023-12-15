@@ -46,33 +46,45 @@
        (map first)
        first))
 
-(defn find-loop
-  ([grid-map]
-   (let [start (get-start grid-map)]
-     (for [starting-direction (grid-map start)]
-       (find-loop starting-direction grid-map start [start] 0))))
-  ([current grid-map last-at visited steps]
-   (if ((set visited) current) {:visited visited :steps steps}
-       (if (nil? current) nil
-           (let [next-option (first (remove #{last-at} (grid-map current)))]
-             (recur next-option grid-map current (conj visited current) (inc steps)))))))
+(defn find-loop [grid-map]
+  (let [start (get-start grid-map)
+        possible-directions (filter #(seq (grid-map %)) (grid-map start))]
+    (loop [current (second possible-directions)
+           last-at start
+           visited [start]
+           steps 0]
+      (if (= start current) {:visited visited :steps steps}
+          (if (nil? current) nil
+              (let [next-option (first (remove #{last-at} (grid-map current)))]
+                (recur next-option current (conj visited current) (inc steps))))))))
 
 (defn part1 [input]
   (->> input
        find-loop
-       (filter seq)
-       first
        :steps
        inc
        (#(/ % 2))))
 
-(defn part2 [input])
+(defn shoelace [[x1 y1] [x2 y2]]
+  (+ (* x1 y2) (- (* x2 y1))))
+
+(defn shoelace [[x1 y1] [x2 y2]]
+  (* (+ y1 y2) (- x1 x2)))
+
+(defn apply-shoelace [coords]
+  (loop [sum 0 coords coords]
+    (if (nil? (second coords)) (abs (/ sum 2))
+        (recur (+ sum (shoelace (first coords) (second coords))) (rest coords)))))
+
+(defn inner-points-picks-theorem [area boundary-points]
+  (+ area 1 (- (/ boundary-points 2))))
+
+(defn part2 [input]
+  (let [path (:visited (find-loop input))
+        area (apply-shoelace (conj path (first path)))]
+    (inner-points-picks-theorem area (count path))))
 
 (comment
-  (string/split "L" "")
-
-  test1-input
-
   (filter seq (find-loop test1-input))
   ;; => ({:visited [[1 1] [2 1] [3 1] [3 2] [3 3] [2 3] [1 3] [1 2]], :steps 7}
   ;;     {:visited [[1 1] [1 2] [1 3] [2 3] [3 3] [3 2] [3 1] [2 1]], :steps 7})
@@ -83,6 +95,10 @@
   ;;     {:visited [[0 2] [0 3] [0 4] [1 4] [1 3] [2 3] [3 3] [4 3] [4 2] [3 2] [3 1] [3 0] [2 0] [2 1] [1 1] [1 2]],
   ;;      :steps 15})
 
+  (filter (fn [d] (seq (test1-input d)))
+          (test1-input (get-start test1-input)))
+  ;; => ([2 1] [1 2])
+
   (part1 test1-input)
   ;; => 4
 
@@ -92,9 +108,10 @@
   (part1 input)
   ;; => 6860
 
-
   (part2 test1-input)
+  ;; => 1
 
   (part2 input)
+  ;; => 343
 
   0)
